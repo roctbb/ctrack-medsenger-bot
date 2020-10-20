@@ -154,7 +154,7 @@ def receiver():
                     new_data = ctrack_api.get_data(contract.access_token, last_id=contract.last_id)
 
                     for item in new_data:
-                        timestamp = datetime.datetime.strptime(item['measured_dt'][:-3], "%Y-%m-%dT%H:%M:%S.%fZ")
+                        timestamp = datetime.datetime.strptime(item['measured_dt'][:19], "%Y-%m-%dT%H:%M:%S")
                         timestamp += datetime.timedelta(hours=-4)
                         timestamp.timestamp()
 
