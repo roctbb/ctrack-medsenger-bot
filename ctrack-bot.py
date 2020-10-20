@@ -154,11 +154,16 @@ def receiver():
                     new_data = ctrack_api.get_data(contract.access_token, last_id=contract.last_id)
 
                     for item in new_data:
-                        timestamp = datetime.datetime.strptime(item['measured_dt'], "%Y-%m-%dT%H:%M:%S.%fZ")
+                        timestamp = datetime.datetime.strptime(item['measured_dt'][:-2], "%Y-%m-%dT%H:%M:%S.%fZ")
                         timestamp += datetime.timedelta(hours=-4)
                         timestamp.timestamp()
 
                         agents_api.add_record(contract.id, 'temperature', item['temperature'], timestamp)
+
+                    if new_data:
+                        contract.last_id = new_data[0]['id']
+
+                db.session.commit()
         except Exception as e:
             print(e)
 
