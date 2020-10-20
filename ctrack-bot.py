@@ -202,8 +202,8 @@ def settings_save():
         if query.count() != 0:
             # TODO: check login
             contract = query.first()
-            login = request.form.get('login', 0)
-            password = request.form.get('password', 0)
+            login = request.form.get('login')
+            password = request.form.get('password')
 
             if login and password:
                 access = ctrack_api.get_tokens(login, password)

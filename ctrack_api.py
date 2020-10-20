@@ -12,7 +12,7 @@ def get_tokens(login, password):
 
     if result.status_code == 200:
         data = result.json()
-        return data['access_token']
+        return data['access']
     else:
         return None
 
