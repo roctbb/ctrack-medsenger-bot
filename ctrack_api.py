@@ -4,7 +4,7 @@ import requests
 
 def get_tokens(login, password):
     data = {
-        "login": login,
+        "email": login,
         "password": password,
     }
 
