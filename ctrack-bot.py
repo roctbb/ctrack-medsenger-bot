@@ -137,7 +137,7 @@ def index():
 def receiver():
     while True:
         try:
-            contracts = Contract.query.filter_by(active=True).get()
+            contracts = Contract.query.filter_by(active=True).all()
 
             for contract in contracts:
                 if contract.login and contract.password:
