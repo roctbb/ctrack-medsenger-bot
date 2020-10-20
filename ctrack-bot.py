@@ -1,3 +1,5 @@
+from threading import Thread
+
 from flask import Flask, request, render_template
 import json
 import time
@@ -134,28 +136,31 @@ def index():
 
 def receiver():
     while True:
-        contracts = Contract.query.filter_by(active=True).get()
+        try:
+            contracts = Contract.query.filter_by(active=True).get()
 
-        for contract in contracts:
-            if contract.login and contract.password:
-                if time.time() - contract.last_access_request > 60 * 29:
-                    access = ctrack_api.get_tokens(contract.login, contract.password)
+            for contract in contracts:
+                if contract.login and contract.password:
+                    if time.time() - contract.last_access_request > 60 * 29:
+                        access = ctrack_api.get_tokens(contract.login, contract.password)
 
-                    if access:
-                        contract.access_token = access
-                        contract.last_access_request = int(time.time())
-                        db.session.commit()
-                    else:
-                        continue
+                        if access:
+                            contract.access_token = access
+                            contract.last_access_request = int(time.time())
+                            db.session.commit()
+                        else:
+                            continue
 
-                new_data = ctrack_api.get_data(contract.access, last_id=contract.last_id)
+                    new_data = ctrack_api.get_data(contract.access, last_id=contract.last_id)
 
-                for item in new_data:
-                    timestamp = datetime.datetime.strptime(item['measured_dt'], "%Y-%m-%dT%H:%M:%S.%fZ")
-                    timestamp += datetime.timedelta(hours=-4)
-                    timestamp.timestamp()
+                    for item in new_data:
+                        timestamp = datetime.datetime.strptime(item['measured_dt'], "%Y-%m-%dT%H:%M:%S.%fZ")
+                        timestamp += datetime.timedelta(hours=-4)
+                        timestamp.timestamp()
 
-                    agents_api.add_record(contract.id, 'temperature', item['temperature'], timestamp)
+                        agents_api.add_record(contract.id, 'temperature', item['temperature'], timestamp)
+        except Exception as e:
+            print(e)
 
         time.sleep(60)
 
@@ -252,6 +257,9 @@ def save_message():
         return "<strong>Некорректный ключ доступа.</strong> Свяжитесь с технической поддержкой."
 
     return "ok"
+
+t = Thread(target=receiver)
+t.start()
 
 
 app.run(port=PORT, host=HOST)
