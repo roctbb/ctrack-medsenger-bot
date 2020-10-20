@@ -118,7 +118,9 @@ def add_record(contract_id, category_name, value, record_time=None):
         data['time'] = record_time
 
     try:
-        requests.post(MAIN_HOST + '/api/agents/records/add', json=data)
+        print(data)
+        answer = requests.post(MAIN_HOST + '/api/agents/records/add', json=data)
+        print(answer.text)
     except Exception as e:
         print('connection error', e)
 
