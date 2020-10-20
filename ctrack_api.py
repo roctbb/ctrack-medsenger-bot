@@ -24,6 +24,8 @@ def get_data(access_token, last_id=0):
 
     result = requests.post(CTRACK_HOST + 'measurements/', headers=headers)
 
+    print(result.text)
+
     try:
         data = result.json()
         return list(filter(lambda x: x['id'] > last_id, data['results']))
