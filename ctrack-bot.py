@@ -6,8 +6,6 @@ from config import *
 import ctrack_api
 import agents_api
 from flask_sqlalchemy import SQLAlchemy
-from uuid import uuid4
-from datetime import timezone
 
 app = Flask(__name__)
 db_string = "postgres://{}:{}@{}:{}/{}".format(DB_LOGIN, DB_PASSWORD, DB_HOST, DB_PORT, DB_DATABASE)
@@ -71,7 +69,7 @@ def init():
 
             print("{}: Reactivate contract {}".format(gts(), contract.id))
         else:
-            contract = Contract(id=contract_id, uuid=str(uuid4()))
+            contract = Contract(id=contract_id)
             db.session.add(contract)
 
             print("{}: Add contract {}".format(gts(), contract.id))
