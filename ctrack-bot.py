@@ -156,7 +156,7 @@ def receiver():
                     for item in new_data:
                         timestamp = datetime.datetime.strptime(item['measured_dt'][:19], "%Y-%m-%dT%H:%M:%S")
                         timestamp += datetime.timedelta(hours=-4)
-                        timestamp.timestamp()
+                        timestamp = timestamp.timestamp()
 
                         agents_api.add_record(contract.id, 'temperature', item['temperature'], timestamp)
 
