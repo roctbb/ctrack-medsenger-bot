@@ -10,6 +10,8 @@ def get_tokens(login, password):
 
     result = requests.post(CTRACK_HOST + 'token/', data=data)
 
+    print(CTRACK_HOST + 'token/', result.text)
+
     if result.status_code == 200:
         data = result.json()
         return data['access']
