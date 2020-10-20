@@ -141,7 +141,7 @@ def receiver():
 
             for contract in contracts:
                 if contract.login and contract.password:
-                    if time.time() - contract.last_access_request > 60 * 29:
+                    if time.time() - contract.last_access_request > 60 * 29 or not contract.access_token:
                         access = ctrack_api.get_tokens(contract.login, contract.password)
 
                         if access:
@@ -216,7 +216,7 @@ def settings_save():
                 if access:
                     contract.login = login
                     contract.password = password
-                    contract.access = access
+                    contract.access_token = access
                     contract.last_access_request = int(time.time())
 
                     db.session.commit()
