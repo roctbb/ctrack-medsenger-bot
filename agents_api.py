@@ -118,9 +118,7 @@ def add_record(contract_id, category_name, value, record_time=None):
         data['time'] = record_time
 
     try:
-        print(data)
         answer = requests.post(MAIN_HOST + '/api/agents/records/add', json=data)
-        print(answer.text)
     except Exception as e:
         print('connection error', e)
 
@@ -136,7 +134,6 @@ def add_records(contract_id, values, record_time=None):
                           (category_name, value) in values]
     else:
         data['values'] = [{"category_name": category_name, "value": value} for (category_name, value) in values]
-    print(data)
     try:
         requests.post(MAIN_HOST + '/api/agents/records/add', json=data)
     except Exception as e:

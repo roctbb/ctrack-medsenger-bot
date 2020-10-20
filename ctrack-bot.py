@@ -23,6 +23,7 @@ def gts():
 class Contract(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     active = db.Column(db.Boolean, default=True)
+    error_sent = db.Column(db.Boolean, default=False)
     login = db.Column(db.String(255), default='')
     password = db.Column(db.String(255), default='')
     access_token = db.Column(db.String(255), default='')
@@ -50,7 +51,6 @@ def status():
         "supported_scenarios": [],
         "tracked_contracts": contract_ids
     }
-    print(answer)
 
     return json.dumps(answer)
 
@@ -149,6 +149,10 @@ def receiver():
                             contract.last_access_request = int(time.time())
                             db.session.commit()
                         else:
+                            if not contract.error_sent:
+                                contract.error_sent = True
+                                send_auth_request(contract.id)
+
                             continue
 
                     new_data = ctrack_api.get_data(contract.access_token, last_id=contract.last_id)
@@ -163,7 +167,7 @@ def receiver():
                     if new_data:
                         contract.last_id = new_data[0]['id']
 
-                db.session.commit()
+            db.session.commit()
         except Exception as e:
             print(e)
 
@@ -223,6 +227,7 @@ def settings_save():
                     contract.password = password
                     contract.access_token = access
                     contract.last_access_request = int(time.time())
+                    contract.error_sent = False
 
                     db.session.commit()
 
