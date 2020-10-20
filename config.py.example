@@ -1,0 +1,11 @@
+HOST = '0.0.0.0'
+PORT = '9105'
+MAIN_HOST = ""
+GEMOCARD_HOST = ""
+APP_KEY = ""
+DB_LOGIN = ''
+DB_PASSWORD = ''
+DB_HOST = ''
+DB_PORT = ''
+DB_DATABASE = ''
+SSL_CONTEXT = []
