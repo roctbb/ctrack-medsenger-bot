@@ -141,6 +141,7 @@ def receiver():
 
             for contract in contracts:
                 if contract.login and contract.password:
+                    print("Requesting data for {}" + contract.id)
                     if time.time() - contract.last_access_request > 60 * 29 or not contract.access_token:
                         access = ctrack_api.get_tokens(contract.login, contract.password)
 
@@ -156,7 +157,7 @@ def receiver():
                             continue
 
                     new_data = ctrack_api.get_data(contract.access_token, last_id=contract.last_id)
-
+                    print("Got data for {}" + contract.id)
                     for item in new_data:
                         timestamp = datetime.datetime.strptime(item['measured_dt'][:19], "%Y-%m-%dT%H:%M:%S")
                         timestamp += datetime.timedelta(hours=-4)
