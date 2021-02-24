@@ -133,46 +133,48 @@ def remove():
 def index():
     return 'waiting for the thunder!'
 
+def tasks():
+    try:
+        contracts = Contract.query.filter_by(active=True).all()
+
+        for contract in contracts:
+            if contract.login and contract.password:
+                print("Requesting data for {}".format(contract.id))
+                if time.time() - contract.last_access_request > 60 * 29 or not contract.access_token:
+                    access = ctrack_api.get_tokens(contract.login, contract.password)
+
+                    if access:
+                        contract.access_token = access
+                        contract.last_access_request = int(time.time())
+                        db.session.commit()
+                    else:
+                        if not contract.error_sent:
+                            contract.error_sent = True
+                            send_auth_request(contract.id)
+
+                        continue
+
+                new_data = ctrack_api.get_data(contract.access_token, last_id=contract.last_id)
+                print("Got data for {}".format(contract.id))
+                for item in new_data:
+                    timestamp = datetime.datetime.strptime(item['measured_dt'][:19], "%Y-%m-%dT%H:%M:%S")
+                    timestamp += datetime.timedelta(hours=-4)
+                    timestamp = timestamp.timestamp()
+
+                    agents_api.add_record(contract.id, 'temperature', item['temperature'], timestamp)
+
+                if new_data:
+                    contract.last_id = new_data[0]['id']
+
+        db.session.commit()
+    except Exception as e:
+        print(e)
+
+    time.sleep(60)
 
 def receiver():
     while True:
-        try:
-            contracts = Contract.query.filter_by(active=True).all()
-
-            for contract in contracts:
-                if contract.login and contract.password:
-                    print("Requesting data for {}".format(contract.id))
-                    if time.time() - contract.last_access_request > 60 * 29 or not contract.access_token:
-                        access = ctrack_api.get_tokens(contract.login, contract.password)
-
-                        if access:
-                            contract.access_token = access
-                            contract.last_access_request = int(time.time())
-                            db.session.commit()
-                        else:
-                            if not contract.error_sent:
-                                contract.error_sent = True
-                                send_auth_request(contract.id)
-
-                            continue
-
-                    new_data = ctrack_api.get_data(contract.access_token, last_id=contract.last_id)
-                    print("Got data for {}".format(contract.id))
-                    for item in new_data:
-                        timestamp = datetime.datetime.strptime(item['measured_dt'][:19], "%Y-%m-%dT%H:%M:%S")
-                        timestamp += datetime.timedelta(hours=-4)
-                        timestamp = timestamp.timestamp()
-
-                        agents_api.add_record(contract.id, 'temperature', item['temperature'], timestamp)
-
-                    if new_data:
-                        contract.last_id = new_data[0]['id']
-
-            db.session.commit()
-        except Exception as e:
-            print(e)
-
-        time.sleep(60)
+        tasks()
 
 
 def send_auth_request(contract_id):
@@ -269,8 +271,9 @@ def save_message():
 
     return "ok"
 
-t = Thread(target=receiver)
-t.start()
 
+if __name__ == "__main__":
+    t = Thread(target=receiver)
+    t.start()
 
-app.run(port=PORT, host=HOST)
+    app.run(port=PORT, host=HOST)
