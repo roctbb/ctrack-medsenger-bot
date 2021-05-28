@@ -6,13 +6,16 @@ import time
 import datetime
 from config import *
 import ctrack_api
-import agents_api
+from medsenger_api import AgentApiClient
 from flask_sqlalchemy import SQLAlchemy
+
+from helpers import verify_json, verify_get
 
 app = Flask(__name__)
 db_string = "postgres://{}:{}@{}:{}/{}".format(DB_LOGIN, DB_PASSWORD, DB_HOST, DB_PORT, DB_DATABASE)
 app.config['SQLALCHEMY_DATABASE_URI'] = db_string
 db = SQLAlchemy(app)
+medsenger_api = AgentApiClient(API_KEY, MAIN_HOST, AGENT_ID, API_DEBUG)
 
 
 def gts():
@@ -38,12 +41,8 @@ except:
 
 
 @app.route('/status', methods=['POST'])
+@verify_json
 def status():
-    data = request.json
-
-    if data['api_key'] != APP_KEY:
-        return 'invalid key'
-
     contract_ids = [l[0] for l in db.session.query(Contract.id).all()]
 
     answer = {
@@ -56,75 +55,58 @@ def status():
 
 
 @app.route('/init', methods=['POST'])
+@verify_json
 def init():
     data = request.json
+    contract_id = int(data['contract_id'])
+    query = Contract.query.filter_by(id=contract_id)
+    if query.count() != 0:
+        contract = query.first()
+        contract.active = True
 
-    if data['api_key'] != APP_KEY:
-        return 'invalid key'
+        print("{}: Reactivate contract {}".format(gts(), contract.id))
+    else:
+        contract = Contract(id=contract_id)
+        db.session.add(contract)
 
-    try:
-        contract_id = int(data['contract_id'])
-        query = Contract.query.filter_by(id=contract_id)
-        if query.count() != 0:
-            contract = query.first()
-            contract.active = True
+        print("{}: Add contract {}".format(gts(), contract.id))
 
-            print("{}: Reactivate contract {}".format(gts(), contract.id))
-        else:
-            contract = Contract(id=contract_id)
-            db.session.add(contract)
+    if 'params' in data:
+        login = data.get('params', {}).get('ctrack_login', '')
+        password = data.get('params', {}).get('ctrack_password', '')
 
-            print("{}: Add contract {}".format(gts(), contract.id))
+        if login and password:
+            access = ctrack_api.get_tokens(login, password)
+            if access:
+                contract.access_token = access
+                contract.login = login
+                contract.password = password
+                contract.last_access_request = time.time()
 
-        if 'params' in data:
-            login = data.get('params', {}).get('ctrack_login', '')
-            password = data.get('params', {}).get('ctrack_password', '')
+    db.session.commit()
 
-            if login and password:
-                access = ctrack_api.get_tokens(login, password)
-                if access:
-                    contract.access_token = access
-                    contract.login = login
-                    contract.password = password
-                    contract.last_access_request = time.time()
+    if not contract.access_token:
+        send_auth_request(contract.id)
 
-        db.session.commit()
-
-        if not contract.access_token:
-            send_auth_request(contract.id)
-
-    except Exception as e:
-        print(e)
-        return "error"
-
-    print('sending ok')
     return 'ok'
 
 
 @app.route('/remove', methods=['POST'])
+@verify_json
 def remove():
     data = request.json
 
-    if data['api_key'] != APP_KEY:
-        print('invalid key')
-        return 'invalid key'
+    contract_id = str(data['contract_id'])
+    query = Contract.query.filter_by(id=contract_id)
 
-    try:
-        contract_id = str(data['contract_id'])
-        query = Contract.query.filter_by(id=contract_id)
+    if query.count() != 0:
+        contract = query.first()
+        contract.active = False
+        db.session.commit()
 
-        if query.count() != 0:
-            contract = query.first()
-            contract.active = False
-            db.session.commit()
-
-            print("{}: Deactivate contract {}".format(gts(), contract.id))
-        else:
-            print('contract not found')
-
-    except Exception as e:
-        print(e)
-        return "error"
+        print("{}: Deactivate contract {}".format(gts(), contract.id))
+    else:
+        print('contract not found')
 
     return 'ok'
 
@@ -156,12 +138,16 @@ def tasks():
 
                 new_data = ctrack_api.get_data(contract.access_token, last_id=contract.last_id)
                 print("Got data for {}".format(contract.id))
+                last_minute = 70
                 for item in new_data:
                     timestamp = datetime.datetime.strptime(item['measured_dt'][:19], "%Y-%m-%dT%H:%M:%S")
                     timestamp += datetime.timedelta(hours=-4)
-                    timestamp = timestamp.timestamp()
+                    if last_minute == timestamp.minute // 10:
+                        continue
+                    else:
+                        last_minute = timestamp.minute // 10
 
-                    agents_api.add_record(contract.id, 'temperature', item['temperature'], timestamp)
+                    medsenger_api.add_record(contract.id, 'temperature', item['temperature'], timestamp.timestamp())
 
                 if new_data:
                     contract.last_id = new_data[0]['id']
@@ -178,77 +164,63 @@ def receiver():
 
 
 def send_auth_request(contract_id):
-    agents_api.send_message(contract_id,
+    medsenger_api.send_message(contract_id,
                             text="Для автоматического импорта данных с термометра C-Track необходимо авторизоваться.",
                             only_patient=True, action_link='auth', action_onetime=True,
                             action_name="Подключить C-Track")
 
 
 @app.route('/settings', methods=['GET'])
+@verify_get
 def settings():
     key = request.args.get('api_key', '')
 
-    if key != APP_KEY:
-        return "<strong>Некорректный ключ доступа.</strong> Свяжитесь с технической поддержкой."
+    contract_id = int(request.args.get('contract_id'))
+    query = Contract.query.filter_by(id=contract_id)
+    if query.count() != 0:
+        contract = query.first()
+    else:
+        return "<strong>Ошибка. Контракт не найден.</strong> Попробуйте отключить и снова подключить интеллектуальный агент к каналу консультирвоания. Если это не сработает, свяжитесь с технической поддержкой."
 
-    try:
-        contract_id = int(request.args.get('contract_id'))
-        query = Contract.query.filter_by(id=contract_id)
-        if query.count() != 0:
-            contract = query.first()
-        else:
-            return "<strong>Ошибка. Контракт не найден.</strong> Попробуйте отключить и снова подключить интеллектуальный агент к каналу консультирвоания. Если это не сработает, свяжитесь с технической поддержкой."
-
-    except Exception as e:
-        print(e)
-        return "error"
 
     return render_template('settings.html', contract=contract, error='')
 
 
 @app.route('/settings', methods=['POST'])
+@verify_get
 def settings_save():
-    key = request.args.get('api_key', '')
+    contract_id = int(request.args.get('contract_id'))
+    query = Contract.query.filter_by(id=contract_id)
+    if query.count() != 0:
+        # TODO: check login
+        contract = query.first()
+        login = request.form.get('login')
+        password = request.form.get('password')
 
-    if key != APP_KEY:
-        return "<strong>Некорректный ключ доступа.</strong> Свяжитесь с технической поддержкой."
+        if login and password:
+            access = ctrack_api.get_tokens(login, password)
 
-    try:
-        contract_id = int(request.args.get('contract_id'))
-        query = Contract.query.filter_by(id=contract_id)
-        if query.count() != 0:
-            # TODO: check login
-            contract = query.first()
-            login = request.form.get('login')
-            password = request.form.get('password')
+            if access:
+                contract.login = login
+                contract.password = password
+                contract.access_token = access
+                contract.last_access_request = int(time.time())
+                contract.error_sent = False
 
-            if login and password:
-                access = ctrack_api.get_tokens(login, password)
+                db.session.commit()
 
-                if access:
-                    contract.login = login
-                    contract.password = password
-                    contract.access_token = access
-                    contract.last_access_request = int(time.time())
-                    contract.error_sent = False
-
-                    db.session.commit()
-
-                    return """
-                            <strong>Спасибо, окно можно закрыть</strong><script>window.parent.postMessage('close-modal-success','*');</script>
-                            """
-                else:
-                    return render_template('settings.html', contract=contract, error='Не удается войти с таким логином и паролем.')
-
+                return """
+                        <strong>Спасибо, окно можно закрыть</strong><script>window.parent.postMessage('close-modal-success','*');</script>
+                        """
             else:
-                return render_template('settings.html', contract=contract, error='Заполните все поля')
+                return render_template('settings.html', contract=contract, error='Не удается войти с таким логином и паролем.')
 
         else:
-            return "<strong>Ошибка. Контракт не найден.</strong> Попробуйте отключить и снова подключить интеллектуальный агент к каналу консультирвоания. Если это не сработает, свяжитесь с технической поддержкой."
+            return render_template('settings.html', contract=contract, error='Заполните все поля')
 
-    except Exception as e:
-        print(e)
-        return "error"
+    else:
+        return "<strong>Ошибка. Контракт не найден.</strong> Попробуйте отключить и снова подключить интеллектуальный агент к каналу консультирвоания. Если это не сработает, свяжитесь с технической поддержкой."
+
 
 
 @app.route('/auth', methods=['GET'])
@@ -263,12 +235,6 @@ def auth_save():
 
 @app.route('/message', methods=['POST'])
 def save_message():
-    data = request.json
-    key = data['api_key']
-
-    if key != APP_KEY:
-        return "<strong>Некорректный ключ доступа.</strong> Свяжитесь с технической поддержкой."
-
     return "ok"
 
 
