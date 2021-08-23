@@ -209,6 +209,9 @@ def settings_save():
 
                 db.session.commit()
 
+                medsenger_api.send_message(contract_id, "Термометр C-Track успешно подключен. Теперь измерения температуры будут поступать автоматически.", only_doctor=True, need_answer=False)
+                medsenger_api.send_message(contract_id, "Термометр C-Track успешно подключен. Теперь, если телефон с установленным мобильным приложением C-Track включен и находится недалеко от пациента, измерения температуры будут поступать автоматически.", only_patient=True)
+
                 return """
                         <strong>Спасибо, окно можно закрыть</strong><script>window.parent.postMessage('close-modal-success','*');</script>
                         """
