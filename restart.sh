@@ -1,2 +1,2 @@
-supervisorctl restart agents-ctrack
-supervisorctl restart agents-ctrack-jobs
+sudo supervisorctl restart agents-ctrack
+sudo supervisorctl restart agents-ctrack-jobs

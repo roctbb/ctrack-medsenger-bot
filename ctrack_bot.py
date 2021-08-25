@@ -115,6 +115,7 @@ def remove():
 def index():
     return 'waiting for the thunder!'
 
+
 def tasks():
     try:
         contracts = Contract.query.filter_by(active=True).all()
@@ -137,11 +138,19 @@ def tasks():
                         continue
 
                 new_data = ctrack_api.get_data(contract.access_token, last_id=contract.last_id)
+                contract_info = medsenger_api.get_patient_info(contract.id)
+                start_date = datetime.datetime.strptime(contract_info['start_date'], "%Y-%m-%d")
+
                 print("Got data for {}".format(contract.id))
+
                 last_minute = 70
                 for item in new_data:
                     timestamp = datetime.datetime.strptime(item['measured_dt'][:19], "%Y-%m-%dT%H:%M:%S")
                     timestamp += datetime.timedelta(hours=-4)
+
+                    if timestamp < start_date:
+                        continue
+
                     if last_minute == timestamp.minute // 10:
                         continue
                     else:
@@ -158,6 +167,7 @@ def tasks():
 
     time.sleep(60)
 
+
 def receiver():
     while True:
         tasks()
@@ -165,9 +175,9 @@ def receiver():
 
 def send_auth_request(contract_id):
     medsenger_api.send_message(contract_id,
-                            text="Для автоматического импорта данных с термометра C-Track необходимо авторизоваться.",
-                            only_patient=True, action_link='auth', action_onetime=True,
-                            action_name="Подключить C-Track")
+                               text="Для автоматического импорта данных с термометра C-Track необходимо авторизоваться.",
+                               only_patient=True, action_link='auth', action_onetime=True,
+                               action_name="Подключить C-Track")
 
 
 @app.route('/settings', methods=['GET'])
@@ -181,7 +191,6 @@ def settings():
         contract = query.first()
     else:
         return "<strong>Ошибка. Контракт не найден.</strong> Попробуйте отключить и снова подключить интеллектуальный агент к каналу консультирвоания. Если это не сработает, свяжитесь с технической поддержкой."
-
 
     return render_template('settings.html', contract=contract, error='')
 
@@ -210,7 +219,9 @@ def settings_save():
                 db.session.commit()
 
                 medsenger_api.send_message(contract_id, "Термометр C-Track успешно подключен. Теперь измерения температуры будут поступать автоматически.", only_doctor=True, need_answer=False)
-                medsenger_api.send_message(contract_id, "Термометр C-Track успешно подключен. Теперь, если телефон с установленным мобильным приложением C-Track включен и находится недалеко от пациента, измерения температуры будут поступать автоматически.", only_patient=True)
+                medsenger_api.send_message(contract_id,
+                                           "Термометр C-Track успешно подключен. Теперь, если телефон с установленным мобильным приложением C-Track включен и находится недалеко от пациента, измерения температуры будут поступать автоматически.",
+                                           only_patient=True)
 
                 return """
                         <strong>Спасибо, окно можно закрыть</strong><script>window.parent.postMessage('close-modal-success','*');</script>
@@ -223,7 +234,6 @@ def settings_save():
 
     else:
         return "<strong>Ошибка. Контракт не найден.</strong> Попробуйте отключить и снова подключить интеллектуальный агент к каналу консультирвоания. Если это не сработает, свяжитесь с технической поддержкой."
-
 
 
 @app.route('/auth', methods=['GET'])
