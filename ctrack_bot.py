@@ -43,7 +43,7 @@ except:
 @app.route('/status', methods=['POST'])
 @verify_json
 def status():
-    contract_ids = [l[0] for l in db.session.query(Contract.id).all()]
+    contract_ids = [l.id for l in db.session.query.filter_by(active=True).all()]
 
     answer = {
         "is_tracking_data": True,
