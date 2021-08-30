@@ -38,7 +38,7 @@ def verify_get(func):
 # decorators
 def verify_json(func):
     def wrapper(*args, **kargs):
-        if not request.json.get('contract_id'):
+        if not request.json.get('contract_id') and "status" not in request.url:
             abort(422)
         if request.json.get('api_key') != API_KEY:
             abort(401)
