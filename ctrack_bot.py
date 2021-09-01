@@ -144,10 +144,17 @@ def tasks():
                 print("Got data for {}".format(contract.id))
                 print(new_data)
 
+                max_time = 0
+                max_id = -1
+
                 last_minute = 70
                 for item in new_data:
                     timestamp = datetime.datetime.strptime(item['measured_dt'][:19], "%Y-%m-%dT%H:%M:%S")
                     timestamp += datetime.timedelta(hours=-4)
+
+                    if timestamp> max_time:
+                        max_time = timestamp
+                        max_id = item['id']
 
                     if timestamp < start_date:
                         continue
@@ -160,13 +167,11 @@ def tasks():
                     medsenger_api.add_record(contract.id, 'temperature', item['temperature'], timestamp.timestamp())
 
                 if new_data:
-                    contract.last_id = new_data[0]['id']
+                    contract.last_id = max_id
 
         db.session.commit()
     except Exception as e:
         print(e)
-
-    time.sleep(60)
 
 
 def receiver():
