@@ -142,6 +142,7 @@ def tasks():
                 start_date = datetime.datetime.strptime(contract_info['start_date'], "%Y-%m-%d")
 
                 print("Got data for {}".format(contract.id))
+                print(new_data)
 
                 last_minute = 70
                 for item in new_data:
