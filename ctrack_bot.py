@@ -153,7 +153,7 @@ def tasks():
                     timestamp += datetime.timedelta(hours=-4)
 
                     if timestamp.timestamp() > max_time:
-                        max_time = timestamp
+                        max_time = timestamp.timestamp()
                         max_id = item['id']
 
                     if timestamp < start_date:
