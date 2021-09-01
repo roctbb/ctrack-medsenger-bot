@@ -152,7 +152,7 @@ def tasks():
                     timestamp = datetime.datetime.strptime(item['measured_dt'][:19], "%Y-%m-%dT%H:%M:%S")
                     timestamp += datetime.timedelta(hours=-4)
 
-                    if timestamp> max_time:
+                    if timestamp.timestamp() > max_time:
                         max_time = timestamp
                         max_id = item['id']
 
