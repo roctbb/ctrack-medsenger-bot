@@ -83,9 +83,16 @@ def init():
                 contract.password = password
                 contract.last_access_request = time.time()
 
+                medsenger_api.send_message(contract_id, "Термометр C-Track успешно подключен. Теперь измерения температуры будут поступать автоматически.", only_doctor=True, need_answer=False)
+                medsenger_api.send_message(contract_id,
+                                           "Термометр C-Track успешно подключен. Теперь, если телефон с установленным мобильным приложением C-Track включен и находится недалеко от пациента, измерения температуры будут поступать автоматически.",
+                                           only_patient=True)
+
     db.session.commit()
 
     if not contract.access_token:
+        medsenger_api.send_message(contract_id, "Пациенту направлена просьба ввести логин и пароль для C-Track. После этого измерения температуры будут поступать автоматически.", only_doctor=True, need_answer=False)
+
         send_auth_request(contract.id)
 
     return 'ok'
