@@ -88,6 +88,9 @@ def init():
                                            "Термометр C-Track успешно подключен. Теперь, если телефон с установленным мобильным приложением C-Track включен и находится недалеко от пациента, измерения температуры будут поступать автоматически.",
                                            only_patient=True)
 
+        medsenger_api.add_record(data.get('contract_id'), 'doctor_action',
+                                 'Подключен прибор "CTrack".')
+
     db.session.commit()
 
     if not contract.access_token:
@@ -114,6 +117,9 @@ def remove():
         print("{}: Deactivate contract {}".format(gts(), contract.id))
     else:
         print('contract not found')
+
+    medsenger_api.add_record(data.get('contract_id'), 'doctor_action',
+                             'Отключен прибор "CTrack".')
 
     return 'ok'
 
