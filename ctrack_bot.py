@@ -12,7 +12,7 @@ from flask_sqlalchemy import SQLAlchemy
 from helpers import verify_json, verify_get
 
 app = Flask(__name__)
-db_string = "postgres://{}:{}@{}:{}/{}".format(DB_LOGIN, DB_PASSWORD, DB_HOST, DB_PORT, DB_DATABASE)
+db_string = "postgresql://{}:{}@{}:{}/{}".format(DB_LOGIN, DB_PASSWORD, DB_HOST, DB_PORT, DB_DATABASE)
 app.config['SQLALCHEMY_DATABASE_URI'] = db_string
 db = SQLAlchemy(app)
 medsenger_api = AgentApiClient(API_KEY, MAIN_HOST, AGENT_ID, API_DEBUG)
